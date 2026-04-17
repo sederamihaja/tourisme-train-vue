@@ -146,7 +146,14 @@ watch(journey, () => {
 function createMarker(gare: Gare) {
   const [lon, lat] = gare.location.coordinates;
 
-  return L.marker([lat, lon]).bindPopup(`<b>${gare.nom}</b>`);
+  return L.circleMarker([lat, lon], {
+    radius: 12,
+    color: "#fff",
+    weight: 1,
+    fillColor: "blue",
+    fillOpacity: 0.8,
+    pane: "markersPane",
+  }).bindPopup(`<b>${gare.nom}</b>`);
 }
 
 function addMarker() {
