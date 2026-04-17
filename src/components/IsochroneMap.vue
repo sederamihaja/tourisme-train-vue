@@ -29,9 +29,9 @@ const markersLayer = ref(L.layerGroup());
 const isItinerary = ref(false);
 const nearByInstitutions = ref([]);
 const departureGare = ref<Gare | null>(null);
-const departureMarker = ref<L.Marker | null>(null);
+const departureMarker = ref<L.CircleMarker | null>(null);
 const destinationGare = ref<Gare | null>(null);
-const destinationMarker = ref<L.Marker | null>(null);
+const destinationMarker = ref<L.CircleMarker | null>(null);
 const query = ref("");
 const distance = ref<number | null>(null);
 const impact = ref<{
@@ -238,7 +238,7 @@ const onSelectDestinationGare = async (gare: Gare) => {
   destinationGare.value = gare;
 
   if (map.value && destinationMarker.value) {
-    map.value.removeLayer(destinationMarker.value as L.Marker);
+    map.value.removeLayer(destinationMarker.value as L.CircleMarker);
   }
 
   destinationMarker.value = createMarker(destinationGare.value);
@@ -359,7 +359,7 @@ function drawJourneyOnMap(journey: Journey) {
 const cancelItinerary = () => {
   departureGare.value = null;
   if (map.value && departureMarker.value) {
-    map.value.removeLayer(departureMarker.value as L.Marker);
+    map.value.removeLayer(departureMarker.value as L.CircleMarker);
     map.value.removeLayer(journeyPolyline.value as L.Polyline);
   }
   isItinerary.value = false;
