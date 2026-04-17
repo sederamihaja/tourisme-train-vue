@@ -3,18 +3,20 @@ import { computed, ref } from "vue";
 import Dialog from "primevue/dialog";
 import dayjs from "dayjs";
 
-import { getJourneyDistance } from "@/utils/distance";
-import { formatHours } from "@/utils/hours";
+import { getJourneyDistance } from "../../utils/distance";
+import { formatHours } from "../../utils/hours";
 
-const props = defineProps({
-  visible: Boolean,
-  data: Object,
-  departureGare: Object,
-});
+import type { Gare, Itineraire, Journey, Horaire } from "../../types";
+
+const props = defineProps<{
+  visible: boolean;
+  data: Itineraire | null;
+  departureGare: Gare | null;
+}>();
 
 const emit = defineEmits<{
-  (e: "update:visible"): void;
-  (e: "choose-itinerary", payload): void;
+  (e: "update:visible", value: boolean): void;
+  (e: "choose-itinerary", value: Journey): void;
 }>();
 
 const open = ref(false);
@@ -34,13 +36,13 @@ const ordreJours = [
   "Dimanche",
 ];
 
-const trierHoraires = (horaires) => {
+const trierHoraires = (horaires: Horaire[]) => {
   return [...horaires].sort(
     (a, b) => ordreJours.indexOf(a.jour) - ordreJours.indexOf(b.jour),
   );
 };
 
-const chooseItinerary = (itinerary) => {
+const chooseItinerary = (itinerary: Journey) => {
   emit("choose-itinerary", itinerary);
 };
 </script>
@@ -69,7 +71,7 @@ const chooseItinerary = (itinerary) => {
         </tr>
       </thead>
 
-      <tbody>
+      <tbody v-if="data">
         <tr v-for="(journey, index) in data.journeys" :key="index">
           <td class="py-3 text-center">
             {{ dayjs(journey.departure_date_time).format("DD/MM/YYYY HH:mm") }}
@@ -103,7 +105,7 @@ const chooseItinerary = (itinerary) => {
     >
       <span class="font-semibold text-left">
         Horaire d'ouverture de la gare :
-        <strong>{{ departureGare.nom }}</strong>
+        <strong>{{ departureGare?.nom }}</strong>
       </span>
 
       <svg
@@ -137,7 +139,7 @@ const chooseItinerary = (itinerary) => {
 
             <tbody class="text-gray-700">
               <tr
-                v-for="h in trierHoraires(departureGare.horaires)"
+                v-for="h in trierHoraires(departureGare?.horaires ?? [])"
                 :key="h._id"
                 class="hover:bg-gray-50 transition rounded-lg"
               >

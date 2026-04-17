@@ -12,26 +12,38 @@ import { useImpactApi } from "../api/useImpactApi";
 import { InputSearch, InputRange, InfoCard, ItineraryModal } from "./ui";
 import { NearbyLocations } from "./modules";
 
-import { getJourneyDistance } from "@/utils/distance";
-import { formatHours } from "@/utils/hours";
-import type { Gare } from "@/types";
+import { getJourneyDistance } from "../utils/distance";
+import { formatHours } from "../utils/hours";
+import type {
+  Gare,
+  Journey,
+  Itineraire,
+  Institution,
+  JourneyEndpoint,
+} from "../types";
 
 const mapContainer = ref<HTMLDivElement | null>(null);
-const map = ref<L.Map | null>(null);
+const map = ref<L.Map | null>();
 const polygonLayer = ref<L.GeoJSON | null>(null);
 const markersLayer = ref(L.layerGroup());
 const isItinerary = ref(false);
 const nearByInstitutions = ref([]);
-const departureGare = ref<Gare>(null);
+const departureGare = ref<Gare | null>(null);
 const departureMarker = ref<L.Marker | null>(null);
-const destinationGare = ref<Gare>(null);
+const destinationGare = ref<Gare | null>(null);
 const destinationMarker = ref<L.Marker | null>(null);
 const query = ref("");
-const distance = ref(null);
-const impact = ref(null);
-const itineraire = ref(null);
-const journey = ref(null);
-const journeyPolyline = ref(null);
+const distance = ref<number | null>(null);
+const impact = ref<{
+  differenceAvion: number;
+  differenceThermique: number;
+}>({
+  differenceAvion: 0,
+  differenceThermique: 0,
+});
+const itineraire = ref<Itineraire | null>(null);
+const journey = ref<Journey | null>(null);
+const journeyPolyline = ref<L.Polyline | null>(null);
 const showMoreItinerary = ref(false);
 
 // Au début, centrer la carte sur la Gare du Nord (Paris)
@@ -105,7 +117,10 @@ onMounted(() => {
   }).addTo(map.value);
 
   map.value.createPane("markersPane");
-  map.value.getPane("markersPane").style.zIndex = 650;
+  const pane = map.value?.getPane("markersPane");
+  if (pane) {
+    pane.style.zIndex = "650";
+  }
 
   markersLayer.value.addTo(map.value);
 
@@ -159,19 +174,23 @@ const fetchGares = (query: string) => {
 const onSelectDepartureGare = async (gare: Gare) => {
   departureGare.value = gare;
 
-  if (departureMarker.value) {
-    map.value.removeLayer(departureMarker.value);
+  if (map.value && departureMarker.value) {
+    map.value?.removeLayer(departureMarker.value as unknown as L.Layer);
   }
 
   departureMarker.value = createMarker(departureGare.value);
-  departureMarker.value.addTo(map.value);
+  if (departureMarker.value && map.value) {
+    departureMarker.value.addTo(map.value);
+  }
 
   if (polygonLayer.value) {
-    map.value?.removeLayer(polygonLayer.value);
+    map.value?.removeLayer(polygonLayer.value as L.GeoJSON);
     polygonLayer.value = null;
   }
 
   addMarker();
+
+  if (!destinationGare.value) return;
 
   const [depLon, depLat] = departureGare.value.location.coordinates;
   const [destLon, destLat] = destinationGare.value.location.coordinates;
@@ -183,35 +202,42 @@ const onSelectDepartureGare = async (gare: Gare) => {
   });
 
   // Afficher l'itinéraire
-  const firstJourney = itineraire.value.journeys[0];
+  if (!itineraire.value) return;
+  const firstJourney = itineraire.value?.journeys[0];
   if (firstJourney) {
     journey.value = firstJourney;
   }
 };
 
-const chooseItinerary = (payload) => {
+const chooseItinerary = (payload: Journey) => {
   journey.value = payload;
   showMoreItinerary.value = false;
 };
 
 const showItinerary = () => {
-  drawJourneyOnMap(journey.value);
+  drawJourneyOnMap(journey.value as Journey);
   distance.value = getJourneyDistance(journey.value);
 };
 
 const calculateImpactCO2 = async () => {
-  impact.value = await impactApi.getImpact({ distance: distance.value });
+  if (distance.value == null) return;
+
+  impact.value = await impactApi.getImpact({
+    distance: distance.value,
+  });
 };
 
 const onSelectDestinationGare = async (gare: Gare) => {
   destinationGare.value = gare;
 
-  if (destinationMarker.value) {
-    map.value.removeLayer(destinationMarker.value);
+  if (map.value && destinationMarker.value) {
+    map.value.removeLayer(destinationMarker.value as L.Marker);
   }
 
   destinationMarker.value = createMarker(destinationGare.value);
-  destinationMarker.value.addTo(map.value);
+  if (map.value && destinationMarker.value) {
+    destinationMarker.value.addTo(map.value);
+  }
 
   // Remettre le temps max à 1h
   hours.value = 1;
@@ -228,12 +254,15 @@ const onSelectDestinationGare = async (gare: Gare) => {
   addInstitutionsMarker(nearByInst);
 };
 
-function addInstitutionsMarker(institutions) {
-  institutions.forEach(function (inst) {
+function addInstitutionsMarker(institutions: Institution[]) {
+  institutions.forEach(function (inst: Institution) {
     var coords = inst.location.coordinates;
 
     var lat = coords[1];
     var lng = coords[0];
+
+    const m = map.value;
+    if (!m) return;
 
     L.circleMarker([lat, lng], {
       radius: 6,
@@ -242,7 +271,7 @@ function addInstitutionsMarker(institutions) {
       fillColor: "#7d206f",
       fillOpacity: 0.8,
       pane: "markersPane",
-    }).addTo(map.value).bindPopup(`
+    }).addTo(m).bindPopup(`
       <div>
         <h3 style="margin:0 0 6px 0;">${inst.nom}</h3>
 
@@ -259,9 +288,8 @@ function addInstitutionsMarker(institutions) {
 }
 
 // Extraire les coordonnées
-function getJourneyCoordinates(journey) {
-  const coords = [];
-
+function getJourneyCoordinates(journey: Journey) {
+  const coords: [number, number][] = [];
   journey.sections.forEach((section) => {
     if (section.geojson?.coordinates) {
       section.geojson.coordinates.forEach(([lng, lat]) => {
@@ -270,8 +298,12 @@ function getJourneyCoordinates(journey) {
     } else if (section.from && section.to) {
       const fromLatLong = findLatLng(section.from);
       const toLatLong = findLatLng(section.to);
-      coords.push([fromLatLong.lat, fromLatLong.lon]);
-      coords.push([toLatLong.lat, toLatLong.lon]);
+      if (fromLatLong) {
+        coords.push([fromLatLong.lat, fromLatLong.lon]);
+      }
+      if (toLatLong) {
+        coords.push([toLatLong.lat, toLatLong.lon]);
+      }
     }
   });
 
@@ -279,22 +311,28 @@ function getJourneyCoordinates(journey) {
 }
 
 // Trouver la valeur de lat long
-function findLatLng(obj) {
+type LatLng = { lat: number; lon: number };
+function findLatLng(obj: unknown): LatLng | null {
   if (typeof obj !== "object" || obj === null) return null;
 
-  if ("lat" in obj && "lon" in obj) {
-    return { lat: obj.lat, lon: obj.lon };
+  const record = obj as Record<string, unknown>;
+
+  if ("lat" in record && "lon" in record) {
+    return {
+      lat: record.lat as number,
+      lon: record.lon as number,
+    };
   }
 
-  for (let key in obj) {
-    const result = findLatLng(obj[key]);
+  for (const key in record) {
+    const result = findLatLng(record[key]);
     if (result) return result;
   }
 
   return null;
 }
 
-function drawJourneyOnMap(journey) {
+function drawJourneyOnMap(journey: Journey) {
   if (!map.value) return;
 
   const coords = getJourneyCoordinates(journey);
@@ -313,9 +351,9 @@ function drawJourneyOnMap(journey) {
 
 const cancelItinerary = () => {
   departureGare.value = null;
-  if (departureMarker.value) {
-    map.value.removeLayer(departureMarker.value);
-    map.value.removeLayer(journeyPolyline.value);
+  if (map.value && departureMarker.value) {
+    map.value.removeLayer(departureMarker.value as L.Marker);
+    map.value.removeLayer(journeyPolyline.value as L.Polyline);
   }
   isItinerary.value = false;
 };
@@ -384,7 +422,7 @@ const cancelItinerary = () => {
         <InfoCard label="Points d'intérêt" :value="nearByInstitutions.length" />
         <InfoCard
           label="Distance / Durée"
-          :value="`${Math.round(distance)} km / ${formatHours(Math.round(journey?.duration))}`"
+          :value="`${Math.round(distance ?? 0)} km / ${formatHours(Math.round(journey?.duration ?? 0))}`"
         />
         <InfoCard
           label="Départ"

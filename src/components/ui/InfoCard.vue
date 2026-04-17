@@ -1,15 +1,36 @@
 <script setup lang="ts">
-interface Props {
+import { computed } from "vue";
+
+type InfoCardValue =
+  | number
+  | string
+  | {
+      differenceAvion: number;
+      differenceThermique: number;
+    };
+
+const props = defineProps<{
   label: string;
-  value: string | number | object;
+  value: InfoCardValue;
   isImpact?: boolean;
   hasClick?: boolean;
-}
+}>();
 
-defineProps<Props>();
 const emit = defineEmits<{
   (e: "more-itinerary"): void;
 }>();
+
+const diffAvion = computed(() => {
+  return typeof props.value === "object" && props.value !== null
+    ? (props.value.differenceAvion ?? 0)
+    : 0;
+});
+
+const diffThermique = computed(() => {
+  return typeof props.value === "object" && props.value !== null
+    ? (props.value.differenceThermique ?? 0)
+    : 0;
+});
 </script>
 
 <template>
@@ -22,11 +43,11 @@ const emit = defineEmits<{
     <div v-if="isImpact" class="flex justify-center items-center">
       <div><i class="icn-car mr-2 align-middle"></i></div>
       <div>
-        <span>{{ Math.round(value?.differenceThermique * 100) / 100 }}</span>
+        <span>{{ Math.round(diffThermique * 100) / 100 }}</span>
       </div>
       <div class="ml-4"><i class="icn-plane mr-2 align-middle"></i></div>
       <div>
-        <span>{{ Math.round(value?.differenceAvion * 100) / 100 }}</span>
+        <span>{{ Math.round(diffAvion * 100) / 100 }}</span>
       </div>
     </div>
     <span

@@ -24,14 +24,18 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue"]);
 
 const rangeStyle = computed(() => {
-  const percent =
-    ((props.modelValue - props.min) / (props.max - props.min)) * 100;
+  const value = props.modelValue ?? props.min;
+
+  const percent = ((value - props.min) / (props.max - props.min)) * 100;
+
   return {
     background: `linear-gradient(to right, #b01678 0%, #b01678 ${percent}%, #e5e7eb ${percent}%, #e5e7eb 100%)`,
   };
 });
 
-const formatHours = (value: number) => {
+const formatHours = (value?: number) => {
+  if (value == null) return "";
+
   let hours = Math.floor(value);
   let minutes = Math.round((value - hours) * 60);
 
@@ -46,8 +50,9 @@ const formatHours = (value: number) => {
   return `${hours}h ${minutes}min`;
 };
 
-function updateValue(event) {
-  emit("update:modelValue", Number(event.target.value));
+function updateValue(event: Event) {
+  const target = event.target as HTMLInputElement;
+  emit("update:modelValue", Number(target.value));
 }
 </script>
 

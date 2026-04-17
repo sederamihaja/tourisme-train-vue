@@ -25,11 +25,23 @@ const { refetch } = useQuery({
   enabled: false,
 });
 
-const debouncedRefetch = debounce(() => {
-  if (query.value.length >= 2)
-    refetch().then((res) => {
-      results.value = res.data;
-    });
+const debouncedRefetch = debounce(async () => {
+  const q = query.value?.trim();
+
+  if (!q || q.length < 2) {
+    results.value = [];
+    return;
+  }
+
+  try {
+    const res = await refetch();
+
+    // sécurise unknown → tableau
+    results.value = Array.isArray(res.data) ? res.data : [];
+  } catch (err) {
+    console.error("Search refetch error:", err);
+    results.value = [];
+  }
 }, 300);
 
 const onInput = () => {
