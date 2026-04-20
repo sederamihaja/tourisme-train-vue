@@ -9,18 +9,18 @@ import { useInstitutionApi } from "../api/useInstitutionApi";
 import { useGareApi } from "../api/useGareApi";
 import { useNavitiaApi } from "../api/useNavitiaApi";
 import { useImpactApi } from "../api/useImpactApi";
-import { InputSearch, InputRange, InfoCard, ItineraryModal } from "./ui";
+import {
+  InputSearch,
+  InputRange,
+  InfoCard,
+  ItineraryModal,
+  ImpactModal,
+} from "./ui";
 import { NearbyLocations } from "./modules";
 
 import { getJourneyDistance } from "../utils/distance";
 import { formatHours } from "../utils/hours";
-import type {
-  Gare,
-  Journey,
-  Itineraire,
-  Institution,
-  JourneyEndpoint,
-} from "../types";
+import type { Gare, Journey, Itineraire, Institution } from "../types";
 
 const mapContainer = ref<HTMLDivElement | null>(null);
 const map = ref<L.Map | null>();
@@ -34,6 +34,7 @@ const destinationGare = ref<Gare | null>(null);
 const destinationMarker = ref<L.CircleMarker | null>(null);
 const query = ref("");
 const distance = ref<number | null>(null);
+const impactData = ref(null);
 const impact = ref<{
   differenceAvion: number;
   differenceThermique: number;
@@ -44,6 +45,7 @@ const impact = ref<{
 const itineraire = ref<Itineraire | null>(null);
 const journey = ref<Journey | null>(null);
 const journeyPolyline = ref<L.Polyline | null>(null);
+const showMoreImpact = ref(false);
 const showMoreItinerary = ref(false);
 
 // Au début, centrer la carte sur la Gare du Nord (Paris)
@@ -229,9 +231,12 @@ const showItinerary = () => {
 const calculateImpactCO2 = async () => {
   if (distance.value == null) return;
 
-  impact.value = await impactApi.getImpact({
-    distance: distance.value,
-  });
+  const { data, differenceAvion, differenceThermique } =
+    await impactApi.getImpact({
+      distance: distance.value,
+    });
+  impact.value = { differenceAvion, differenceThermique };
+  impactData.value = data;
 };
 
 const onSelectDestinationGare = async (gare: Gare) => {
@@ -425,7 +430,12 @@ const cancelItinerary = () => {
         </div>
       </div>
       <div v-if="departureGare" class="flex gap-1">
-        <InfoCard label="CO₂e evités (kg)" :value="impact" is-impact />
+        <InfoCard
+          label="CO₂e evités (kg)"
+          :value="impact"
+          is-impact
+          @click="showMoreImpact = true"
+        />
         <InfoCard label="Points d'intérêt" :value="nearByInstitutions.length" />
         <InfoCard
           label="Distance / Durée"
@@ -434,8 +444,7 @@ const cancelItinerary = () => {
         <InfoCard
           label="Départ"
           :value="`${dayjs(journey?.departure_date_time).format('DD/MM/YYYY HH:mm')}`"
-          has-click
-          @more-itinerary="showMoreItinerary = true"
+          @click="showMoreItinerary = true"
         />
       </div>
     </div>
@@ -445,6 +454,12 @@ const cancelItinerary = () => {
       :data="itineraire"
       :departure-gare="departureGare"
       @choose-itinerary="chooseItinerary"
+    />
+
+    <ImpactModal
+      v-if="impactData"
+      v-model:visible="showMoreImpact"
+      :data="impactData"
     />
 
     <NearbyLocations

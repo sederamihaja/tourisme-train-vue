@@ -13,11 +13,10 @@ const props = defineProps<{
   label: string;
   value: InfoCardValue;
   isImpact?: boolean;
-  hasClick?: boolean;
 }>();
 
 const emit = defineEmits<{
-  (e: "more-itinerary"): void;
+  (e: "click"): void;
 }>();
 
 const diffAvion = computed(() => {
@@ -35,7 +34,8 @@ const diffThermique = computed(() => {
 
 <template>
   <div
-    class="flex-1 bg-white border-2 border-[#b01678] text-center text-[#b01678] shadow rounded-xl p-4 cursor-pointer select-none"
+    class="flex-1 bg-white border-2 border-[#b01678] text-center text-[#b01678] rounded-xl p-4 cursor-pointer select-none transition-all duration-200 hover:bg-gray-100 hover:shadow-xl hover:-translate-y-1 hover:border-[#8a125f]"
+    @click="emit('click')"
   >
     <h3>
       <strong>{{ label }}</strong>
@@ -50,11 +50,7 @@ const diffThermique = computed(() => {
         <span>{{ Math.round(diffAvion * 100) / 100 }}</span>
       </div>
     </div>
-    <span
-      v-else
-      :class="hasClick && 'hover:underline'"
-      @click="emit('more-itinerary')"
-    >
+    <span v-else>
       {{ value }}
     </span>
   </div>
