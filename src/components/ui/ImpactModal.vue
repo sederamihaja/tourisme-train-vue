@@ -86,7 +86,7 @@ const chartOptions = {
       <div class="flex align-items-center gap-2">
         <i class="pi pi-exclamation-triangle text-orange-500"></i>
         <span class="font-semibold"
-          >Impact CO₂e sur les différents types de tranport</span
+          >Impact CO₂e sur les différents types de transport</span
         >
       </div>
     </template>
