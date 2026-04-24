@@ -6,6 +6,8 @@ import { useQuery } from "@tanstack/vue-query";
 import dayjs from "dayjs";
 
 import { useInstitutionApi } from "../api/useInstitutionApi";
+import { useEtablissementApi } from "../api/useEtablissementApi";
+import { useFestivalApi } from "../api/useFestivalApi";
 import { useGareApi } from "../api/useGareApi";
 import { useNavitiaApi } from "../api/useNavitiaApi";
 import { useImpactApi } from "../api/useImpactApi";
@@ -16,18 +18,18 @@ import {
   ItineraryModal,
   ImpactModal,
 } from "./ui";
-import { NearbyLocations } from "./modules";
+import { NearbyPlaces } from "./modules";
 
 import { getJourneyDistance } from "../utils/distance";
 import { formatHours } from "../utils/hours";
-import type { Gare, Journey, Itineraire, Institution } from "../types";
+import type { Gare, Journey, Itineraire, Place } from "../types";
 
 const mapContainer = ref<HTMLDivElement | null>(null);
 const map = ref<L.Map | null>();
 const polygonLayer = ref<L.GeoJSON | null>(null);
 const markersLayer = ref(L.layerGroup());
 const isItinerary = ref(false);
-const nearByInstitutions = ref([]);
+const nearByPlaces = ref<Place[]>([]);
 const departureGare = ref<Gare | null>(null);
 const departureMarker = ref<L.CircleMarker | null>(null);
 const destinationGare = ref<Gare | null>(null);
@@ -54,6 +56,8 @@ const hours = ref(1);
 
 const gareApi = useGareApi();
 const institutionApi = useInstitutionApi();
+const etablissementApi = useEtablissementApi();
+const festivalApi = useFestivalApi();
 const navitiaApi = useNavitiaApi();
 const impactApi = useImpactApi();
 const {
@@ -258,16 +262,25 @@ const onSelectDestinationGare = async (gare: Gare) => {
 
   addMarker();
 
-  // Récupérer tous les institutions à proximités
+  // Récupérer tous les places, établissements et festivals à proximités
   const nearByInst = await institutionApi.getNearBy({
     location: gare.location,
   });
-  nearByInstitutions.value = nearByInst;
+  const nearByEt = await etablissementApi.getNearBy({
+    location: gare.location,
+  });
+  const nearByFest = await festivalApi.getNearBy({
+    location: gare.location,
+  });
+
+  nearByPlaces.value = [...nearByInst, ...nearByEt, ...nearByFest];
   addInstitutionsMarker(nearByInst);
+  addEtablissementMarker(nearByEt);
+  addFestivalMarker(nearByFest);
 };
 
-function addInstitutionsMarker(institutions: Institution[]) {
-  institutions.forEach(function (inst: Institution) {
+function addInstitutionsMarker(institutions: Place[]) {
+  institutions.forEach(function (inst: Place) {
     var coords = inst.location.coordinates;
 
     var lat = coords[1];
@@ -280,7 +293,73 @@ function addInstitutionsMarker(institutions: Institution[]) {
       radius: 6,
       color: "#fff",
       weight: 1,
-      fillColor: "#7d206f",
+      fillColor: "#c72434",
+      fillOpacity: 0.8,
+      pane: "markersPane",
+    }).addTo(m).bindPopup(`
+      <div>
+        <h3 style="margin:0 0 6px 0;">${inst.nom}</h3>
+
+        <p style="margin:0;">
+          <b>Type :</b> ${inst.type}
+        </p>
+
+        <p style="margin:0;">
+          <b>Adresse :</b> ${inst.adresse}
+        </p>
+      </div>
+    `);
+  });
+}
+
+function addEtablissementMarker(etablissements: Place[]) {
+  etablissements.forEach(function (inst: Place) {
+    var coords = inst.location.coordinates;
+
+    var lat = coords[1];
+    var lng = coords[0];
+
+    const m = map.value;
+    if (!m) return;
+
+    L.circleMarker([lat, lng], {
+      radius: 6,
+      color: "#fff",
+      weight: 1,
+      fillColor: "#f59e0b",
+      fillOpacity: 0.8,
+      pane: "markersPane",
+    }).addTo(m).bindPopup(`
+      <div>
+        <h3 style="margin:0 0 6px 0;">${inst.nom}</h3>
+
+        <p style="margin:0;">
+          <b>Type :</b> ${inst.type}
+        </p>
+
+        <p style="margin:0;">
+          <b>Adresse :</b> ${inst.adresse}
+        </p>
+      </div>
+    `);
+  });
+}
+
+function addFestivalMarker(festivals: Place[]) {
+  festivals.forEach(function (inst: Place) {
+    var coords = inst.location.coordinates;
+
+    var lat = coords[1];
+    var lng = coords[0];
+
+    const m = map.value;
+    if (!m) return;
+
+    L.circleMarker([lat, lng], {
+      radius: 6,
+      color: "#fff",
+      weight: 1,
+      fillColor: "#28d1a4",
       fillOpacity: 0.8,
       pane: "markersPane",
     }).addTo(m).bindPopup(`
@@ -436,7 +515,7 @@ const cancelItinerary = () => {
           is-impact
           @click="showMoreImpact = true"
         />
-        <InfoCard label="Points d'intérêt" :value="nearByInstitutions.length" />
+        <InfoCard label="Points d'intérêt" :value="nearByPlaces.length" />
         <InfoCard
           label="Distance / Durée"
           :value="`${Math.round(distance ?? 0)} km / ${formatHours(Math.round(journey?.duration ?? 0))}`"
@@ -462,9 +541,6 @@ const cancelItinerary = () => {
       :data="impactData"
     />
 
-    <NearbyLocations
-      v-if="nearByInstitutions.length"
-      :locations="nearByInstitutions"
-    />
+    <NearbyPlaces v-if="nearByPlaces.length" :places="nearByPlaces" />
   </div>
 </template>

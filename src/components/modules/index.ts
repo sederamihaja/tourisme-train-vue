@@ -1,4 +1,5 @@
-import Location from "./Locations.vue";
-import NearbyLocations from "./NearbyLocations.vue";
+import Place from "./Places.vue";
+import PlaceModal from "./PlaceModal.vue";
+import NearbyPlaces from "./NearbyPlaces.vue";
 
-export { NearbyLocations, Location };
+export { NearbyPlaces, Place, PlaceModal };

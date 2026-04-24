@@ -125,7 +125,8 @@ Lorsque vous sélectionnez une gare :
 
 - Elle s’affiche sur la carte
 - Une zone isochrone est générée autour de celle-ci
-- Les **institutions à proximité** sont affichées
+- Les **institutions, établissements et festivals à proximité** sont affichées
+- Vous pouvez voir les détails d'une palce tout en cliquant dessus
 
 ---
 
